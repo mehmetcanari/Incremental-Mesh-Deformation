@@ -5,8 +5,24 @@ public class MeshDeformerInput : MonoBehaviour
 {
     public float force = 10f; // Kuvvet miktarı
     public float radius = 1f; // Etki yarıçapı
+    public float waveSpeed = 1f; // Dalga hızı
+    public float waveAmplitude = 1f; // Dalga genliği
 
     private Coroutine waveCoroutine; // Mevcut dalga yayılma işlemi Coroutine'i
+
+    private Vector3[] vertices;
+    private Vector3[] originalVertices;
+
+    private void Start()
+    {
+        MeshFilter meshFilter = GetComponent<MeshFilter>();
+        if (meshFilter != null)
+        {
+            Mesh mesh = meshFilter.mesh;
+            vertices = mesh.vertices;
+            originalVertices = mesh.vertices.Clone() as Vector3[];
+        }
+    }
 
     void Update()
     {
@@ -20,6 +36,9 @@ public class MeshDeformerInput : MonoBehaviour
 
             HandleInput();
         }
+
+        // Mesh yüzeyini dalga denklemine göre güncelle
+        ApplyWaveEquation();
     }
 
     void HandleInput()
@@ -33,9 +52,8 @@ public class MeshDeformerInput : MonoBehaviour
             if (deformer)
             {
                 Vector3 point = hit.point;
-                point += hit.normal * 0.1f; // Deformasyonun daha belirgin olması için normalin yönünde bir ofset ekliyoruz.
+                point += hit.normal * 0.1f;
 
-                // İlk tıklanan köşeden aynı düzlemdeki uç köşeye doğru dalga yayılımı
                 Vector3 oppositePoint = GetOppositeCorner(hit.collider.bounds, point);
                 waveCoroutine = StartCoroutine(ApplyWaveEffect(point, oppositePoint));
             }
@@ -52,16 +70,15 @@ public class MeshDeformerInput : MonoBehaviour
         return oppositeCorner;
     }
 
-
     IEnumerator ApplyWaveEffect(Vector3 start, Vector3 end)
     {
         float elapsedTime = 0f;
-        float duration = 1f; // 1 saniyede dalga yayılacak
+        float duration = 1f;
         while (elapsedTime < duration)
         {
-            elapsedTime += Time.deltaTime;
+            elapsedTime += Time.deltaTime * waveSpeed; // waveSpeed ile çarpılarak dalganın hızı etkilenir.
             float falloff = CalculateFalloff(elapsedTime, duration);
-            Vector3 waveCenter = Vector3.Lerp(start, end, falloff);
+            Vector3 waveCenter = Vector3.Lerp(start, end, falloff * waveAmplitude); // Dalga genliği etkisini artırmak için waveAmplitude ile çarpın.
 
             Collider[] colliders = Physics.OverlapSphere(waveCenter, radius);
             foreach (var collider in colliders)
@@ -82,5 +99,46 @@ public class MeshDeformerInput : MonoBehaviour
         float halfDuration = duration / 2f;
         float distance = Mathf.Abs(t - halfDuration);
         return 1f - distance / halfDuration;
+    }
+
+    void ApplyWaveEquation()
+    {
+        if (vertices == null || originalVertices == null || vertices.Length != originalVertices.Length)
+        {
+            // Dizi referansları doğrulanamadı, işlemi durdur.
+            return;
+        }
+
+        float deltaTime = Time.deltaTime;
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            Vector3 originalPosition = originalVertices[i];
+            Vector3 newPosition = new Vector3(
+                originalPosition.x,
+                originalPosition.y,
+                originalPosition.z + CalculateWaveHeight(originalPosition, Time.time)
+            );
+            vertices[i] = newPosition;
+        }
+
+        MeshFilter meshFilter = GetComponent<MeshFilter>();
+        if (meshFilter != null && meshFilter.sharedMesh != null)
+        {
+            Mesh mesh = meshFilter.mesh;
+            mesh.vertices = vertices;
+            mesh.RecalculateNormals();
+        }
+    }
+
+    float CalculateWaveHeight(Vector3 position, float time)
+    {
+        float c = waveSpeed;
+        float x = position.x;
+        float y = position.y;
+        float t = time;
+        float u = waveAmplitude;
+
+        float waveHeight = u * Mathf.Sin(c * t - c * x - c * y);
+        return waveHeight;
     }
 }

@@ -455,8 +455,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cbd4a3a4e61848ed889cc2da93c3f407, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  force: 10
+  force: 20
   radius: 3
+  waveSpeed: 1
+  waveAmplitude: 1
 --- !u!1001 &1200831591
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -577,7 +579,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   springForce: 20
-  damping: 5
+  damping: 20
   maxDepression: 1
 --- !u!65 &1200831597
 BoxCollider:
